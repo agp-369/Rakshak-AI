@@ -110,7 +110,7 @@ quant_config = QuantizationConfig(bits=4, group_size=128)
 
 | File | Purpose |
 |------|---------|
-| `notebooks/gemma4_sos_finetuning.ipynb` | Existing fine-tuning notebook (Kaggle) |
-| `gemma4-sos-lora/` | Previous LoRA adapter |
-| `gemma4-sos-merged-4bit/` | Previous merged model |
+| `fine-tuning/notebook.ipynb` | Fine-tuning notebook (Kaggle) |
+| `fine-tuning/output/lora/` | LoRA adapter output |
+| `fine-tuning/output/merged/` | Merged model output |
 | `samsung/fine-tuning/india_scenarios.jsonl` | India-specific dataset (to be created) |

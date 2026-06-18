@@ -47,3 +47,10 @@ Thumbs.db
 *.litertlm
 node_modules/
 .env
+disaster_protocols.db
+
+# Internal competition docs
+ROADMAP.md
+docs/strategy.md
+docs/submission.md
+demo/script.md
