@@ -41,15 +41,9 @@
 - All imports use `package:rakshak_ai/...`
 
 ### Kaggle
-- **v2 notebook** (`rakshak-ai-india-finetune-v2`, synthetic only):
-  - URL: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-india-finetune-v2
+- **Notebook** (`rakshak-ai-indian-medical-triage-fine-tuning`, real + synthetic hybrid):
+  - URL: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-indian-medical-triage-fine-tuning
   - Accelerator: GPU T4 x2 (set manually)
-  - Dataset: 2000 synthetic India disaster triage scenarios (natural language)
-  - Fixed torch import bug, T4 x2 multi-GPU support, zipfile
-  - Old v1 deleted (409 conflict on re-push)
-
-- **v3 notebook** (`rakshak-ai-v3-real-data`, real + synthetic hybrid) — **RECOMMENDED**:
-  - URL: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-v3-real-data
   - Accelerator: GPU T4 x2 (set manually)
   - **Real datasets used**:
     - **HiMed Hindi Medical Dataset** (Kaggle, 411K entries, 155 MB) — Hindi medical vocabulary
@@ -63,8 +57,7 @@
 ## 2. Your Action Steps (Next 15 Days)
 
 ### Step 1: Run Kaggle Fine-Tuning (Jun 22–25, ~2 hrs)
-1. Go to **https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-v3-real-data** (recommended)
-   - Alternative: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-india-finetune-v2 (synthetic only, faster)
+1. Go to **https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-indian-medical-triage-fine-tuning**
 2. Click **Settings** → **Accelerator** → Select **GPU T4 x2**
 3. Click "Run All" (≈35 min training with T4 x2, ~70 min with T4 x1)
 4. After completion:

@@ -45,5 +45,5 @@ samsung/
 ## Links
 
 - **Submission Portal**: https://www.samsungindiamarketing.com/SolveForTomorrow/Default.aspx
-- **Kaggle Notebook**: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-v3-real-data
+- **Kaggle Notebook**: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-indian-medical-triage-fine-tuning
 - **Deadline**: July 3, 2026
