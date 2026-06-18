@@ -1,6 +1,6 @@
 # Rakshak AI
 
-An offline-first AI disaster medical triage app for India. Built with Flutter and Gemma 4.
+An offline-first AI disaster medical triage app for India. Built with Flutter and Gemma 4 E2B.
 
 ## Overview
 

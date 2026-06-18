@@ -11,5 +11,5 @@
   "competition_sources": [],
   "kernel_sources": [],
   "model_sources": [],
-  "description": "Fine-tunes Gemma 4 2.6B IT for offline disaster medical triage in India. Uses real datasets: HiMed Hindi Medical (Kaggle), LatentSig Medical Triage (HuggingFace), and ASHA-Saathi (HuggingFace). Outputs LoRA adapter for on-device inference via flutter_gemma. Created for Samsung Solve for Tomorrow 2026."
+  "description": "Fine-tunes Gemma 4 E2B IT for offline disaster medical triage in India. Uses real datasets: HiMed Hindi Medical (Kaggle), LatentSig Medical Triage (HuggingFace), and ASHA-Saathi (HuggingFace). Outputs LoRA adapter for on-device inference via flutter_gemma. Created for Samsung Solve for Tomorrow 2026."
 }
