@@ -1,0 +1,14 @@
+{
+  "id": "abhishekguptaagp/rakshak-ai-v3-real-data",
+  "title": "Rakshak AI v3 Real Data",
+  "code_file": "rakshak_ai_v3_real_data.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "true",
+  "dataset_sources": ["amitkumarjaiswal/himed-hindi-medical-dataset"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
