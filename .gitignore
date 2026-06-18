@@ -49,8 +49,12 @@ node_modules/
 .env
 disaster_protocols.db
 
-# Internal competition docs
+# Internal planning / competition docs
 ROADMAP.md
+fine-tuning/plan.md
 docs/strategy.md
 docs/submission.md
 demo/script.md
+
+# Local archive (personal reference, not project source)
+_archive/
