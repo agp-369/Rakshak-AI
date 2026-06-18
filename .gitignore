@@ -1,11 +1,47 @@
+# Flutter
+build/
+.dart_tool/
+.packages
+.pub-preload-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.metadata
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+android/key.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner/GeneratedPluginRegistrant.*
+*.xcworkspace
+xcuserdata/
+
+# Model files (pushed via ADB, not in repo)
+assets/models/*
+!assets/models/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/
+
+# Misc
 .DS_Store
 Thumbs.db
-*.pyc
-__pycache__/
-.ipynb_checkpoints/
-*.egg-info/
-dist/
-build/
+*.log
 *.zip
 *.gguf
 *.litertlm

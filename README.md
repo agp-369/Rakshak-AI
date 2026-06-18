@@ -1,32 +1,79 @@
 # Rakshak AI
 
-Offline-first AI-powered disaster medical triage app for **Samsung Solve for Tomorrow 2026** (Theme: AI Living for India).
+Offline-first AI-powered disaster medical triage for India.
 
-Fine-tunes **Gemma 4 2.6B (IT)** on Indian medical datasets to perform **START protocol triage** in Hindi and English. Runs entirely on-device on budget Samsung phones with no internet connectivity.
+Built for **Samsung Solve for Tomorrow 2026** (Theme: AI Living for India). Fine-tunes **Gemma 4 2.6B IT** on Indian medical datasets to perform **START protocol triage** in Hindi and English. Runs entirely on-device on budget Samsung phones with no internet.
 
----
+## Features
+
+- **Medical Triage** — START protocol assessment (RED/YELLOW/GREEN/BLACK) with Hindi + English input
+- **Offline AI** — Fine-tuned Gemma 4 model runs on-device via flutter_gemma
+- **Emergency SOS** — One-tap alert with GPS location broadcast
+- **Offline Maps** — Evacuation routes and relief camp locations
+- **QR Mesh** — Patient data sync between devices without internet
+- **Wreckage Scanner** — Structure damage assessment (GPU-dependent)
+
+## Quick Start
+
+### 1. Fine-Tune the Model
+
+Run the Kaggle notebook (requires GPU T4 x2):
+
+- **Kaggle**: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-indian-medical-triage-fine-tuning
+- **Dataset**: HiMed (Hindi Medical), LatentSig Medical Triage, ASHA-Saathi, synthetic disaster scenarios
+- **Output**: LoRA adapter → merged 16-bit model → `.litertlm`
+
+### 2. Load Model on Phone
+
+```bash
+adb push rakshak-ai-it.litertlm /sdcard/Download/
+```
+
+Open Rakshak AI → Settings → Load Model.
+
+### 3. Build APK
+
+```bash
+flutter build apk --release
+adb install build/app/outputs/flutter-apk/app-release.apk
+```
 
 ## Project Structure
 
 ```
-samsung/
-├── docs/
-│   ├── strategy.md        # Competition strategy & positioning
-│   ├── submission.md      # Application writeup (copy-paste ready)
-│   ├── story.md           # User narrative (Priya, NCC cadet)
-│   └── technical-gaps.md  # Known limitations & mitigations
-├── fine-tuning/
-│   ├── plan.md            # Dataset composition & training pipeline
-│   ├── notebook.ipynb     # Kaggle fine-tuning notebook (real + synthetic data)
-│   └── kernel-metadata.json
-├── demo/
-│   └── script.md          # 2:30 min demo video script
-├── ROADMAP.md             # 15-day action plan
-├── .gitignore
-└── README.md
+lib/
+├── main.dart                     # App entry, radar splash, GPU status
+├── theme/app_theme.dart          # India-inspired saffron/teal/navy palette
+├── services/
+│   ├── gemma_service.dart        # Model loading, inference, DeviceCapabilities
+│   ├── triage_engine.dart        # START protocol decision engine
+│   ├── gps_service.dart          # Location tracking
+│   └── offline_maps_service.dart # Map data caching
+├── models/
+│   └── triage_result.dart        # Triage data models
+├── ui/
+│   ├── triage_dashboard.dart     # Main dashboard with glassmorphism cards
+│   ├── medical_triage_screen.dart # Triage assessment form
+│   ├── sos_screen.dart           # Emergency alert with pulse animation
+│   ├── offline_maps_screen.dart  # Offline evacuation maps
+│   ├── settings_screen.dart      # Model loading, language, GPU config
+│   └── widgets/
+│       └── wreckage_analyzer.dart # Structure damage scanner
+test/
+├── widget_test.dart              # Unit tests for services
+android/                          # Android platform
+ios/                              # iOS platform
+assets/models/                    # Model files (push via ADB)
+docs/                             # Samsung competition docs
+├── strategy.md                   # Competition strategy
+├── submission.md                 # Application writeup
+├── story.md                      # User narrative
+├── technical-gaps.md             # Known limitations
+fine-tuning/                      # Kaggle notebook & plan
+demo/                             # Video script
 ```
 
-## Datasets Used
+## Datasets
 
 | Dataset | Source | Samples | Purpose |
 |---------|--------|---------|---------|
@@ -35,15 +82,12 @@ samsung/
 | ASHA-Saathi Instructions | HuggingFace | 4K+ | India ASHA worker protocols |
 | Synthetic India Disaster | Generated | 2,000 | Flood/cyclone/earthquake triage |
 
-## Quick Start
-
-1. Run the Kaggle notebook at `/fine-tuning/notebook.ipynb` on GPU T4 x2
-2. Download the LoRA adapter (`rakshak-ai-lora.zip`)
-3. Load into the Rakshak AI Flutter app on a Samsung phone
-4. Use offline for disaster medical triage in Hindi/English
-
 ## Links
 
-- **Submission Portal**: https://www.samsungindiamarketing.com/SolveForTomorrow/Default.aspx
-- **Kaggle Notebook**: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-indian-medical-triage-fine-tuning
+- **Submission**: https://www.samsungindiamarketing.com/SolveForTomorrow/Default.aspx
+- **Kaggle**: https://www.kaggle.com/code/abhishekguptaagp/rakshak-ai-indian-medical-triage-fine-tuning
 - **Deadline**: July 3, 2026
+
+## License
+
+MIT

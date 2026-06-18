@@ -1,0 +1,32 @@
+name: rakshak_ai
+description: Rakshak AI - Offline disaster response app for India. AI-powered medical triage, SOS, and mesh sync.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # flutter_gemma v0.15+ supports Gemma 4 E2B/E4B with getActiveModel
+  flutter_gemma: ^0.15.0
+  # Alternative (Android-optimized, GPU/NPU):
+  # flutter_litert_lm: ^0.1.0
+  geolocator: ^13.0.1
+  path_provider: ^2.1.3
+  sqflite: ^2.3.3+1
+  image_picker: ^1.1.2
+  qr_flutter: ^4.1.0
+  qr_code_scanner_plus: ^2.1.1
+  archive: ^4.0.9
+  path: ^1.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  # Model is NOT bundled in APK (2.59 GB). Push via ADB:
+  #   adb push assets/models/gemma-4-E2B-it.litertlm /sdcard/Download/
