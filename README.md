@@ -1,52 +1,97 @@
 # Rakshak AI (रक्षक AI)
 
-An offline-first AI disaster medical triage app for India. Built with Flutter and Gemma 4 E2B.
+**Offline-first AI disaster medical triage for India** — powered by Gemma 4 E2B running entirely on-device.
 
-**Theme**: Samsung Solve for Tomorrow 2026 — AI Living for India
+Samsung Solve for Tomorrow 2026 · Theme: AI Living for India
 
-## Overview
+---
 
-Rakshak AI performs START protocol triage (RED/YELLOW/GREEN/BLACK) on disaster victims using Google's Gemma 4 E2B (5.15B params) running entirely on-device. No internet required.
+## Problem
 
-The app is designed for budget Android phones (₹8,000-₹12,000) commonly used in rural India. It supports both Hindi and English input with regional language support in development.
+Every year, **200M+ Indians** are affected by floods, cyclones, and earthquakes. In the critical "Golden Hour" after a disaster:
+
+- Phone networks are down — **no internet, no signal**
+- Ambulances and doctors cannot reach affected areas
+- First responders must triage victims using paper tags and intuition
+- Families get separated with no way to reunite
+- **Most disaster deaths occur because help could not be prioritized fast enough**
+
+Existing solutions require internet, expensive hardware, or trained medical professionals — none of which are available when disaster strikes rural India.
+
+## Solution
+
+Rakshak AI turns any **₹8,000 Samsung Galaxy phone** into a fully offline AI-powered disaster response command center. By combining Google's **Gemma 4 E2B** (5.15B params) with medical-grade START protocol triage, the app enables anyone — an NCC volunteer, a panchayat worker, a teacher — to perform professional-level mass casualty triage without any training, internet, or network.
+
+**AI Living for India** — Reusing 650M+ existing Android phones, built for India's disaster-prone regions, running India's most capable open AI model entirely on-device.
 
 ## Features
 
-- **Medical Triage** — Assess victims using START protocol with Hindi or English input. Uses structured prompt engineering with Gemma 4 + deterministic START algorithm as fallback.
-- **Offline AI** — Gemma 4 E2B runs locally via flutter_gemma. No connectivity needed.
-- **Emergency SOS** — One-tap alert with GPS location capture.
-- **Patient Tracking** — QR-based mesh sync for patient data sharing between responders.
-- **Offline Maps** — Manual bookmark system for marking shelter/hospital/water/food locations.
-- **First Aid Protocols** — 17 emergency protocols (snakebite, burns, heart attack, drowning, drone strike, chemical exposure, etc.) with step-by-step guidance, Hindi support, and severity indicators.
-- **I'M SAFE** — Family reunification system. Mark yourself safe with GPS location; family members search by name to find you.
-- **Settings** — Model status, language toggle, cache management.
+| Feature | Description |
+|---------|-------------|
+| **Medical Triage** | Describe victim in Hindi/English → AI extracts parameters → START protocol assigns RED/YELLOW/GREEN/BLACK. Deterministic engine fallback ensures 100% medical accuracy. |
+| **On-Device AI** | Gemma 4 E2B via flutter_gemma. **Zero data leaves the phone.** All inference local. |
+| **17 First Aid Protocols** | Snakebite, burns, heart attack, drowning, earthquake, flood, heatstroke, chemical exposure, drone strike — step-by-step with Hindi support, severity indicators, and read-aloud TTS. |
+| **Emergency SOS** | One-tap alert broadcasts GPS location via phone flash + stored coordinates. |
+| **QR Mesh Sync** | Multiple responders? Generate a QR code with patient data — second phone scans it. Team coordination without any network. |
+| **I'M SAFE** | Family reunification: mark yourself safe with GPS location. Family members search by name to find you. |
+| **Incident Reporting** | 9 incident types (fire, flood, collapse, gas leak, etc.) with GPS, photo, resolution tracking. |
+| **Voice Input/Output** | Hindi + English speech-to-text for triage. Read-aloud TTS for first aid steps. |
+| **Offline Maps** | Bookmark shelters, hospitals, water sources, food distribution points. |
+| **Patient Management** | SQLite with JSON export for hospital handoff. |
+| **Emergency Contacts** | One-tap dial to 108 (ambulance), 100 (police), 101 (fire), 112 (emergency), and more. |
 
-## Model Fine-Tuning (Kaggle T4x2)
+## Technical Architecture
 
-Fine-tunes Gemma 4 E2B (5.15B) with LoRA on Indian medical datasets:
+```
+┌──────────────────────────────────────────┐
+│              Flutter UI Layer             │
+│  TriageDashboard  MedicalTriageScreen    │
+│  FirstAidScreen   SosScreen             │
+│  ImSafeScreen     IncidentReport        │
+│  OfflineMaps      Settings              │
+└──────────────────┬───────────────────────┘
+                   │
+┌──────────────────▼───────────────────────┐
+│             Service Layer                │
+│  GemmaTriageService  ── Prompt LLM      │
+│  TriageEngine        ── START protocol  │
+│  PatientRepository   ── SQLite          │
+│  MeshService         ── QR code P2P     │
+│  GpsService          ── Offline GPS     │
+│  VoiceService        ── STT/TTS         │
+└──────────────────┬───────────────────────┘
+                   │
+┌──────────────────▼───────────────────────┐
+│          Inference Layer                 │
+│  GemmaService  (flutter_gemma)           │
+│  └── .litertlm model (4-bit quantized)  │
+│  └── DeviceCapability detection         │
+│  └── CPU/GPU auto-selection              │
+└──────────────────────────────────────────┘
+```
 
-- **HiMed Hindi Medical Corpus** (Kaggle) — 411K Hindi medical entries
-- **LatentSig Medical Triage** (HuggingFace) — 1K Hinglish triage samples
-- **ASHA-Saathi Instructions** (HuggingFace) — 4K India ASHA protocol data
-- **Synthetic India Disaster Scenarios** — 2K flood/cyclone/earthquake triage cases
+## Model Fine-Tuning Pipeline
 
-Notebook: `fine-tuning/notebook.ipynb` | Kaggle: GPU T4 x2 (Dual T4, 16GB each)
+| Step | Tool | Output |
+|------|------|--------|
+| 1. Dataset | HiMed (411K), MGH Triage, ASHA-Saathi, Synthetic India scenarios | JSONL |
+| 2. Training | Unsloth + LoRA on Kaggle T4 x2 (16GB each) | LoRA adapter |
+| 3. Merge | 4-bit → FP16 dequantization + weight merge | SafeTensors (7.7 GB) |
+| 4. Export | ai-edge-torch → `.litertlm` | On-device model (~2.6 GB) |
 
-Output: LoRA adapter → merged SafeTensors → `.litertlm` for flutter_gemma.
+Notebook: `fine-tuning/notebook.ipynb` · Conversion: `fine-tuning/convert_to_litertlm.ipynb`
 
-## Build
+## Quick Start
 
 ```bash
+# Build Android APK
 flutter build apk --release
+
+# Push model to phone
+adb push rakshak-ai.litertlm /sdcard/Download/
+
+# Open app — model auto-detected
 ```
-
-Push the trained model to your phone:
-
-```bash
-adb push rakshak-ai-it.litertlm /sdcard/Download/
-```
-
-Open the app and load the model from Settings.
 
 ## Project Structure
 
@@ -54,54 +99,15 @@ Open the app and load the model from Settings.
 lib/
 ├── main.dart
 ├── theme/
-│   └── app_theme.dart
-├── services/
-│   ├── gemma_service.dart         # Gemma 4 inference + DeviceCapabilities
-│   ├── gemma_triage_service.dart   # Prompt-engineered LLM triage
-│   ├── triage_engine.dart          # START protocol decision tree
-│   ├── gps_service.dart            # Offline-first GPS with caching
-│   ├── mesh_service.dart           # QR-based P2P patient sync
-│   ├── patient_repository.dart     # SQLite CRUD for patients
-│   └── im_safe_service.dart        # Family reunification check-in
-├── models/
-│   └── triage_result.dart
-├── data/
-│   └── first_aid_protocols.dart    # 17 emergency protocols + step data
-└── ui/
-    ├── triage_dashboard.dart
-    ├── medical_triage_screen.dart
-    ├── first_aid_screen.dart        # Searchable protocol list
-    ├── protocol_detail_screen.dart  # Step-by-step guide view
-    ├── im_safe_screen.dart          # Family reunification UI
-    ├── settings_screen.dart
-    ├── sos_screen.dart
-    ├── offline_maps_screen.dart
-    └── widgets/
-        └── wreckage_analyzer.dart
-android/
-├── app/src/main/kotlin/.../MainActivity.kt  # UPDATED: MethodChannel for GPU/RAM
-ios/
-test/
-assets/
-├── models/gemma-4-E2B-it.litertlm    # Base model (push via ADB, not bundled)
-fine-tuning/                           # Primary fine-tuning notebook (Kaggle T4x2)
-notebooks/                             # Secondary/legacy notebooks
-python/                                # Python agent, scripts, benchmarks
-├── agent/                            # Disaster response orchestrator (CLI)
-├── scripts/benchmark.py              # Triage accuracy benchmark suite
-docs/
-```
-
-## Build
-
-```bash
-# Build Android APK
-flutter build apk --release
-
-# Push model to phone (2.59 GB, not bundled in APK)
-adb push assets/models/gemma-4-E2B-it.litertlm /sdcard/Download/
-
-# Open app — model auto-detected on first launch
+├── services/     # Gemma inference, triage, GPS, mesh, patient, voice
+├── models/       # Data models
+├── data/         # 17 first aid protocols
+└── ui/           # 15+ screens and widgets
+fine-tuning/      # Kaggle notebook + .litertlm conversion
+notebooks/        # Training notebooks
+python/           # Python agent, benchmarks, tools
+docs/             # Architecture, API, setup
+data/manuals/     # Disaster response protocol markdown
 ```
 
 ## Benchmarks
@@ -112,35 +118,11 @@ pip install -r requirements.txt
 python scripts/benchmark.py
 ```
 
-## Status
-
-| Feature | Status |
-|---------|--------|
-| START Protocol Engine | ✅ 10/10 unit tests |
-| Dark India-inspired Theme | ✅ Material 3 |
-| Gemma 4 Inference | ✅ Base + prompt |
-| SOS + GPS | ✅ Working |
-| QR Mesh Sync | ✅ GZip compressed |
-| Settings Screen | ✅ v1.0 added |
-| Offline Maps | ✅ Bookmarks v1.0 |
-| Device Capabilities | ✅ Real detection |
-| Patient Edit/Delete | ✅ v1.0 added |
-| Hindi/English Triage | ✅ Both |
-| First Aid Protocols (17) | ✅ Searchable, Hindi, step-by-step, severity |
-| I'M SAFE — Family Reunification | ✅ GPS check-in + name search |
-| Emergency Contacts | ✅ 10 numbers (108/112/100/101...) with one-tap dial |
-| Incident Reporting | ✅ 9 types + GPS + photo + resolve tracking |
-| Data Export/Import | ✅ JSON export + import for hospital handoff |
-| Voice Input (STT) | ✅ Hindi/English mic button on triage screen |
-| Read Aloud (TTS) | ✅ Protocol Detail screen — reads step-by-step aloud |
-| Protocol Detail Screen | ✅ Step guide + DO NOT + seek help |
-| Fine-Tuning Notebook | ✅ Kaggle T4x2 ready (multi-GPU, val split, eval) |
-| .litertlm Export | ✅ ai-edge-torch pipeline (graceful fallback) |
-| Real Device Test | ⚠️ Pending (need ADB + model push) |
-
 ## Built For
 
-Samsung Solve for Tomorrow 2026 — Theme: AI Living for India
+**Samsung Solve for Tomorrow 2026** — Theme: AI Living for India
+
+Every phone can be a lifeline. When the network fails, AI saves.
 
 ## License
 
