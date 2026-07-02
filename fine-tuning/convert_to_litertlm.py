@@ -22,12 +22,24 @@ os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 
 BASE_MODEL_ID = "unsloth/gemma-4-e2b-it-unsloth-bnb-4bit"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-LORA_PATH = os.path.join(SCRIPT_DIR, "..", "rakshak-output", "rakshak-lora-final")
-OUTPUT_DIR = os.path.join(SCRIPT_DIR, "..", "rakshak-output", "rakshak-merged-litertlm")
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+LORA_PATH = os.path.join(PROJECT_DIR, "rakshak-lora-final")
+OUTPUT_DIR = os.path.join(PROJECT_DIR, "rakshak-output", "rakshak-merged-litertlm")
 LITERTLM_PATH = os.path.join(OUTPUT_DIR, "rakshak-ai.litertlm")
 MERGED_PATH = os.path.join(OUTPUT_DIR, "full-precision")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Handle LoRA as zip if extracted dir doesn't exist
+if not os.path.isdir(LORA_PATH):
+    zip_path = LORA_PATH + ".zip"
+    if os.path.isfile(zip_path):
+        print(f"Extracting {zip_path} ...")
+        import zipfile
+        with zipfile.ZipFile(zip_path) as zf:
+            zf.extractall(LORA_PATH)
+    else:
+        raise FileNotFoundError(f"LoRA adapter not found at {LORA_PATH} or {zip_path}")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Device: {device}")
@@ -75,31 +87,23 @@ print(f"  Sample dtype: {first_val.dtype}")
 if any(k.endswith('.base_layer.weight') or '.lora_' in k for k in sd):
     raise RuntimeError("merge_and_unload did not collapse LoRA keys")
 
-if first_val.dtype == torch.uint8:
-    print("  Weights 4-bit. Dequantizing...")
-    new_sd = {}
-    for module_name, module in model.named_modules():
-        if not module_name:
-            continue
-        if hasattr(module, 'weight') and module.weight is not None:
-            w = module.weight
-            qs = getattr(module, 'quant_state', None)
-            if qs is not None:
-                w = bnb.functional.dequantize_4bit(w, qs)
-            new_sd[module_name + '.weight'] = w.to(torch.float16).contiguous()
-        if hasattr(module, 'bias') and module.bias is not None:
-            new_sd[module_name + '.bias'] = module.bias.to(torch.float16).contiguous()
-    sd = new_sd
-    print(f"  Dequantized {len(sd)} tensors")
-else:
-    sd = {}
-    for module_name, module in model.named_modules():
-        if not module_name:
-            continue
-        if hasattr(module, 'weight') and module.weight is not None:
-            sd[module_name + '.weight'] = module.weight.to(torch.float16).contiguous()
-        if hasattr(module, 'bias') and module.bias is not None:
-            sd[module_name + '.bias'] = module.bias.to(torch.float16).contiguous()
+# Build FP16 state dict: dequantize 4-bit layers, cast the rest
+sd = {}
+dequantized_count = 0
+for module_name, module in model.named_modules():
+    if not module_name:
+        continue
+    if hasattr(module, 'weight') and module.weight is not None:
+        w = module.weight
+        qs = getattr(module, 'quant_state', None)
+        if w.dtype == torch.uint8 and qs is not None:
+            w = bnb.functional.dequantize_4bit(w, qs)
+            dequantized_count += 1
+        sd[module_name + '.weight'] = w.to(torch.float16).contiguous()
+    if hasattr(module, 'bias') and module.bias is not None:
+        sd[module_name + '.bias'] = module.bias.to(torch.float16).contiguous()
+
+print(f"  Dequantized {dequantized_count} layers, {len(sd)} total tensors")
 
 # Save
 os.makedirs(MERGED_PATH, exist_ok=True)
@@ -120,13 +124,13 @@ print(f"  Saved. Size: {size_gb:.2f} GB")
 
 # Verify + inference test
 print("\n  Verifying with FastModel + inference test...")
-del model
+del model, tokenizer
 gc.collect()
 torch.cuda.empty_cache()
 
 vm, vtokenizer = FastModel.from_pretrained(
     model_name=MERGED_PATH, max_seq_length=2048,
-    dtype=None, load_in_4bit=(device == "cuda"), device_map="auto",
+    dtype=None, load_in_4bit=torch.cuda.is_available(), device_map="auto",
 )
 
 test_input = "Patient not breathing. Triage category?"
@@ -150,10 +154,13 @@ try:
     import ai_edge_torch
     from ai_edge_torch.generative.utilities import export as ai_edge_export
 
+    # Re-load tokenizer from saved merged model
+    from transformers import AutoTokenizer
+    litertlm_tokenizer = AutoTokenizer.from_pretrained(MERGED_PATH)
     ai_edge_export.model_to_litert(
         MERGED_PATH,
         output_path=LITERTLM_PATH,
-        tokenizer=tokenizer,
+        tokenizer=litertlm_tokenizer,
         seq_length=2048,
     )
     litertlm_size = os.path.getsize(LITERTLM_PATH) / 1024**3
