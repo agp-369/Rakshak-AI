@@ -1,17 +1,23 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:rakshak_ai/services/gemma_service.dart';
 import 'package:rakshak_ai/services/gps_service.dart';
+import 'package:rakshak_ai/services/localization.dart';
 import 'package:rakshak_ai/services/mesh_service.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
 import 'package:rakshak_ai/ui/widgets/wreckage_analyzer.dart';
 import 'package:rakshak_ai/ui/medical_triage_screen.dart' as medical;
 import 'package:rakshak_ai/ui/offline_maps_screen.dart';
+import 'package:rakshak_ai/ui/settings_screen.dart';
 import 'package:rakshak_ai/ui/sos_screen.dart';
+import 'package:rakshak_ai/ui/first_aid_screen.dart';
+import 'package:rakshak_ai/ui/im_safe_screen.dart';
+import 'package:rakshak_ai/ui/emergency_contacts_screen.dart';
+import 'package:rakshak_ai/ui/incident_report_screen.dart';
 
 class TriageDashboard extends StatefulWidget {
-  const TriageDashboard({super.key});
+  final bool isEmbedded;
+  const TriageDashboard({super.key, this.isEmbedded = false});
 
   @override
   State<TriageDashboard> createState() => _TriageDashboardState();
@@ -44,7 +50,7 @@ class _TriageDashboardState extends State<TriageDashboard>
 
   Future<void> _initSystem() async {
     try {
-      setState(() => _statusMessage = 'Rakshak AI Engine...');
+      setState(() => _statusMessage = '${Strings.appTitle} Engine…');
       await _gemma.initialize();
       setState(() => _statusMessage = 'Acquiring GPS...');
       _gpsReady = await _gps.initialize();
@@ -62,6 +68,9 @@ class _TriageDashboardState extends State<TriageDashboard>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.isEmbedded) {
+      return _buildBody();
+    }
     return Scaffold(
       backgroundColor: AppTheme.navy,
       body: CustomScrollView(
@@ -91,28 +100,40 @@ class _TriageDashboardState extends State<TriageDashboard>
                 onPressed: () => _showSystemStatus(context),
                 tooltip: 'System Status',
               ),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, color: AppTheme.grey),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
+                tooltip: 'Settings',
+              ),
             ],
           ),
           SliverFillRemaining(
             hasScrollBody: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildStatusHeader(),
-                  const SizedBox(height: 24),
-                  _buildHeroTriageCard(),
-                  const SizedBox(height: 24),
-                  _buildToolGrid(),
-                  const Spacer(),
-                  _buildFooter(),
-                ],
-              ),
+              child: _buildBody(),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildStatusHeader(),
+        const SizedBox(height: 24),
+        _buildHeroTriageCard(),
+        const SizedBox(height: 24),
+        _buildToolGrid(),
+        const Spacer(),
+        _buildFooter(),
+      ],
     );
   }
 
@@ -321,12 +342,12 @@ class _TriageDashboardState extends State<TriageDashboard>
       crossAxisCount: 2,
       crossAxisSpacing: 14,
       mainAxisSpacing: 14,
-      childAspectRatio: 1.6,
+      childAspectRatio: 1.5,
       children: [
         _buildToolTile(
           icon: Icons.remove_red_eye_outlined,
           label: 'STRUCTURE SCAN',
-          sublabel: 'Damage Analysis',
+          sublabel: 'GPU Required (Premium)',
           color: AppTheme.chakraBlue,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WreckageAnalyzer())),
         ),
@@ -350,6 +371,34 @@ class _TriageDashboardState extends State<TriageDashboard>
           sublabel: 'Resources Near You',
           color: AppTheme.saffronLight,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OfflineMapsScreen())),
+        ),
+        _buildToolTile(
+          icon: Icons.medical_services_outlined,
+          label: 'FIRST AID',
+          sublabel: '17 Emergency Protocols',
+          color: AppTheme.chakraBlue,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FirstAidScreen())),
+        ),
+        _buildToolTile(
+          icon: Icons.radar,
+          label: "I'M SAFE",
+          sublabel: 'Family Reunification',
+          color: AppTheme.teal,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ImSafeScreen())),
+        ),
+        _buildToolTile(
+          icon: Icons.contact_phone,
+          label: 'EMERGENCY #',
+          sublabel: '108, 112, 100, 101...',
+          color: AppTheme.red,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyContactsScreen())),
+        ),
+        _buildToolTile(
+          icon: Icons.report_gmailerrorred,
+          label: 'INCIDENTS',
+          sublabel: 'Report & Track',
+          color: AppTheme.yellow,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IncidentReportScreen())),
         ),
       ],
     );
@@ -457,6 +506,14 @@ class _TriageDashboardState extends State<TriageDashboard>
                 onPressed: () async {
                   final payload = await mesh.generateSyncPayload();
                   if (!ctx.mounted) return;
+                  if (payload == null) {
+                    Navigator.pop(ctx);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Too many patients for QR sync. Reduce count or use Import/Export.')),
+                    );
+                    return;
+                  }
                   Navigator.pop(ctx);
                   _showQrCode(context, payload);
                 },

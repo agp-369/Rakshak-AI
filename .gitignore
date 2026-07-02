@@ -1,15 +1,16 @@
-# Flutter
+# ── Flutter ──
 build/
 .dart_tool/
 .packages
 .pub-preload-cache/
 .flutter-plugins
 .flutter-plugins-dependencies
+.metadata
 *.iml
 .idea/
-.metadata
+flutter_export_environment.sh
 
-# Android
+# ── Android ──
 android/.gradle/
 android/app/build/
 android/local.properties
@@ -19,42 +20,76 @@ android/key.properties
 *.jks
 *.keystore
 
-# iOS
+# ── iOS ──
 ios/Pods/
 ios/.symlinks/
+ios/Flutter/App.framework
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
+ios/Flutter/ephemeral/
 ios/Runner/GeneratedPluginRegistrant.*
 *.xcworkspace
 xcuserdata/
 
-# Model files (pushed via ADB, not in repo)
-assets/models/*
-!assets/models/.gitkeep
-
-# Python
+# ── Python ──
 __pycache__/
 *.pyc
+*.pyo
 *.egg-info/
 .ipynb_checkpoints/
 
-# Misc
-.DS_Store
-Thumbs.db
-*.log
-*.zip
+# ── ML Model artifacts ──
+rakshak-lora-output/
+rakshak-output/
+notebooks/rakshak_output/
+*.safetensors
+*.bin
+*.pt
+*.pth
 *.gguf
 *.litertlm
-node_modules/
-.env
+checkpoint-*/
+
+# ── Data / databases (derived, not source) ──
+python/chromadb_data/
+python/disaster_protocols.db
 disaster_protocols.db
 
-# Internal planning / competition docs
+# ── Archives & temp ──
+*.zip
+*.tar.gz
+*.tgz
+*.log
+*.tmp
+*.cache
+.cache/
+
+# ── Environment / secrets ──
+.env
+.env.local
+*.key
+*.pem
+service-account.json
+
+# ── OS files ──
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Internal planning / competition strategy (personal, not project source) ──
 ROADMAP.md
 fine-tuning/plan.md
 docs/strategy.md
 docs/submission.md
-demo/script.md
-
-# Local archive (personal reference, not project source)
+demo/
+DEMO_SCRIPT.md
+SUBMISSION_GUIDE.md
+python/agent/report.md
+python/agent/status.md
+python/agent/GEMINI.md
 _archive/
+
+# ── Generated / IDE ──
+node_modules/
+.vscode/
+.history/

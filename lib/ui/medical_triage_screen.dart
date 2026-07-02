@@ -5,9 +5,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:rakshak_ai/services/triage_engine.dart';
 import 'package:rakshak_ai/services/gemma_triage_service.dart';
+import 'package:rakshak_ai/services/localization.dart';
 import 'package:rakshak_ai/services/patient_repository.dart';
 import 'package:rakshak_ai/services/mesh_service.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
+import 'package:rakshak_ai/ui/widgets/voice_input_button.dart';
 
 class MedicalTriageScreen extends StatefulWidget {
   const MedicalTriageScreen({super.key});
@@ -215,6 +217,13 @@ class _MedicalTriageScreenState extends State<MedicalTriageScreen> {
     final payload = await _mesh.generateSyncPayload();
     if (!mounted) return;
 
+    if (payload == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Too many patients for QR sync. Try reducing patient count.')),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -306,7 +315,7 @@ class _MedicalTriageScreenState extends State<MedicalTriageScreen> {
     return Scaffold(
       backgroundColor: AppTheme.navy,
       appBar: AppBar(
-        title: const Text('Medical Triage'),
+        title: Text(Strings.triage),
         actions: [
           IconButton(
             icon: const Icon(Icons.sync, color: AppTheme.saffronLight),
@@ -391,10 +400,24 @@ class _MedicalTriageScreenState extends State<MedicalTriageScreen> {
                       labelText: 'Describe Patient (English / हिंदी)',
                       hintText: 'e.g., "Patient not walking, weak pulse" or Hindi...',
                       isDense: true,
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.camera_alt, color: AppTheme.saffronLight),
-                        onPressed: _assessFromCamera,
-                        tooltip: 'Camera Assessment',
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          VoiceInputButton(
+                            onResult: (text) {
+                              _descController.text = text;
+                              _descController.selection = TextSelection.fromPosition(
+                                TextPosition(offset: text.length),
+                              );
+                            },
+                            size: 36,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.camera_alt, color: AppTheme.saffronLight, size: 20),
+                            onPressed: _assessFromCamera,
+                            tooltip: 'Camera Assessment',
+                          ),
+                        ],
                       ),
                     ),
                     maxLines: 2,
@@ -717,6 +740,15 @@ class _MedicalTriageScreenState extends State<MedicalTriageScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close', style: TextStyle(color: AppTheme.grey)),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _repo.deletePatient(p.id);
+              _loadPatients();
+            },
+            icon: const Icon(Icons.delete_outline, size: 16, color: AppTheme.red),
+            label: const Text('Delete', style: TextStyle(color: AppTheme.red)),
           ),
         ],
       ),

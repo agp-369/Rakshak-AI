@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -30,13 +31,29 @@ class GemmaResult {
 class DeviceCapabilities {
   DeviceCapabilities._();
 
+  static const _channel = MethodChannel('rakshak_ai/device');
+
+  static bool _supportsVision = false;
+  static bool _isLowRam = false;
+
+  /// Initialize capabilities from platform channel (call once at startup).
+  static Future<void> initialize() async {
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        _supportsVision = await _channel.invokeMethod<bool>('hasGpu') ?? false;
+        _isLowRam = await _channel.invokeMethod<bool>('isLowRamDevice') ?? false;
+      }
+    } catch (_) {
+      _supportsVision = false;
+      _isLowRam = false;
+    }
+  }
+
   /// Whether the device supports image analysis (requires GPU/NPU).
-  /// Budget Samsung phones (M05, A series) will return false.
-  static bool get supportsVision => _hasGpu();
+  static bool get supportsVision => _supportsVision;
 
   /// Whether this is a low-RAM device (≤4 GB).
-  /// Adjusts model params to avoid OOM.
-  static bool get isLowRam => _isLowRamDevice();
+  static bool get isLowRam => _isLowRam;
 
   /// Optimal max tokens based on available memory.
   static int get maxTokens => isLowRam ? 512 : 1024;
@@ -47,22 +64,6 @@ class DeviceCapabilities {
   /// Preferred backend based on device capabilities.
   static PreferredBackend get preferredBackend =>
       supportsVision ? PreferredBackend.gpu : PreferredBackend.cpu;
-
-  static bool _hasGpu() {
-    // On Android, check for GPU availability.
-    // For now, default to CPU-only (safest for all devices).
-    // Can be improved with Platform channels to check:
-    //   - ActivityManager.isLowRamDevice()
-    //   - OpenGLES version
-    //   - GPU renderer string
-    return false;
-  }
-
-  static bool _isLowRamDevice() {
-    // Default to false (assume capable) for now.
-    // TODO: Use MethodChannel to check ActivityManager.isLowRamDevice()
-    return false;
-  }
 }
 
 /// Gemma 4 E2B on-device inference service.
@@ -77,6 +78,9 @@ class GemmaInferenceService {
   String _lastError = '';
   int _totalInferences = 0;
   double _avgLatencyMs = 0;
+
+  /// Language preference for triage responses.
+  static bool useHindi = false;
 
   bool get isInitialized => _isInitialized;
   bool get isModelLoaded => _model != null;
@@ -241,6 +245,7 @@ class GemmaInferenceService {
   }
 
   /// Analyze an image using Gemma 4's multimodal vision.
+  /// Note: Requires GPU/NPU. Budget phones will fall back to text-only triage.
   Future<GemmaResult> analyzeImage(
     Uint8List imageBytes,
     String query,
@@ -249,7 +254,7 @@ class GemmaInferenceService {
       return const GemmaResult(
         text: 'Image analysis requires GPU acceleration.\n\n'
             'Your device does not have a compatible GPU/NPU for vision processing.\n\n'
-            'Text-based triage works perfectly.',
+            'Text-based triage works perfectly on all devices.',
         confidence: ConfidenceLevel.insufficient,
         error: 'Vision requires GPU — unavailable on this device',
       );
@@ -265,8 +270,10 @@ class GemmaInferenceService {
 
     try {
       final session = await _model!.createSession();
-      await session.addQueryChunk(Message.image(image: imageBytes));
-      await session.addQueryChunk(Message.text(text: query));
+      await session.addQueryChunk(Message.withImage(
+        text: query,
+        imageBytes: imageBytes,
+      ));
       final responseText = await session.getResponse();
       await session.close();
 

@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'triage_engine.dart';
 
 class PatientRepository {
@@ -75,11 +78,70 @@ class PatientRepository {
   }
 
   TriageCategory _parseCategory(String code) {
-    return TriageCategory.values.firstWhere((e) => e.code == code, orElse: () => TriageCategory.minimal);
+    return TriageCategory.values.firstWhere((e) => e.code == code.toUpperCase(), orElse: () => TriageCategory.minimal);
+  }
+
+  Future<void> deletePatient(String id) async {
+    final db = await database;
+    await db.delete('patients', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> updatePatient(PatientAssessment patient) async {
+    final db = await database;
+    await db.update(
+      'patients',
+      patient.toJson(),
+      where: 'id = ?',
+      whereArgs: [patient.id],
+    );
   }
 
   Future<void> clearAll() async {
     final db = await database;
     await db.delete('patients');
+  }
+
+  Future<String> exportToJson() async {
+    final patients = await getAllPatients();
+    final data = {
+      'exported_at': DateTime.now().toIso8601String(),
+      'app': 'Rakshak AI',
+      'version': '1.0.0',
+      'total_patients': patients.length,
+      'patients': patients.map((p) => p.toJson()).toList(),
+    };
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File(join(dir.path, 'rakshak_patients_export_${DateTime.now().millisecondsSinceEpoch}.json'));
+    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(data));
+    return file.path;
+  }
+
+  Future<int> importFromJson(String jsonString) async {
+    try {
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      final list = data['patients'] as List;
+      int count = 0;
+      for (final item in list) {
+        final assessment = PatientAssessment(
+          id: item['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          timestamp: DateTime.tryParse(item['timestamp'] ?? '') ?? DateTime.now(),
+          isWalking: item['is_walking'] == true || item['is_walking'] == 1,
+          isBreathing: item['is_breathing'] == true || item['is_breathing'] == 1,
+          respiratoryRate: (item['respiratory_rate'] ?? 20) as int,
+          hasRadialPulse: item['has_radial_pulse'] == true || item['has_radial_pulse'] == 1,
+          capillaryRefillSeconds: (item['capillary_refill_seconds'] ?? 2) as int,
+          respondsToVoice: item['responds_to_voice'] == true || item['responds_to_voice'] == 1,
+          respondsToPain: item['responds_to_pain'] == true || item['responds_to_pain'] == 1,
+          visibleInjuries: item['visible_injuries'] as String?,
+          category: _parseCategory(item['category'] as String? ?? 'MIN'),
+          confidenceScore: (item['confidence_score'] ?? 0.5) as double,
+        );
+        await insertPatient(assessment);
+        count++;
+      }
+      return count;
+    } catch (e) {
+      return -1;
+    }
   }
 }

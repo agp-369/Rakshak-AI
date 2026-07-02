@@ -94,6 +94,9 @@ class GpsService {
     }
   }
 
+  /// Convenience: returns last known Position-like map or null.
+  Future<GeoPoint?> getLastKnownPosition() async => _lastKnown;
+
   /// Distance in meters between two points (Haversine).
   static double distanceBetween(GeoPoint a, GeoPoint b) {
     return Geolocator.distanceBetween(

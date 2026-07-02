@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:rakshak_ai/services/gps_service.dart';
+import 'package:rakshak_ai/services/localization.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OfflineMapsScreen extends StatefulWidget {
   const OfflineMapsScreen({super.key});
@@ -14,7 +17,7 @@ class _OfflineMapsScreenState extends State<OfflineMapsScreen> {
   String _status = 'Initializing...';
   GeoPoint? _position;
   String _selectedCategory = 'shelter';
-  String? _disclaimerShown;
+  List<Map<String, dynamic>> _bookmarks = [];
 
   final List<Map<String, String>> _categories = [
     {'key': 'shelter', 'label': 'Shelters', 'icon': 'house'},
@@ -28,28 +31,104 @@ class _OfflineMapsScreenState extends State<OfflineMapsScreen> {
   void initState() {
     super.initState();
     _loadPosition();
+    _loadBookmarks();
   }
 
   Future<void> _loadPosition() async {
-    final pos = await _gps.getCurrentPosition();
-    setState(() {
-      _position = pos;
-      _status = pos.source == 'fallback'
-          ? 'Using approximate location'
-          : 'Location acquired';
+    try {
+      final pos = await _gps.getCurrentPosition();
+      setState(() {
+        _position = pos;
+        _status = 'Location acquired';
+      });
+    } catch (_) {
+      setState(() => _status = 'GPS unavailable — use manual mark');
+    }
+  }
+
+  Future<void> _loadBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('map_bookmarks');
+    if (raw != null) {
+      setState(() => _bookmarks = List<Map<String, dynamic>>.from(json.decode(raw)));
+    }
+  }
+
+  Future<void> _saveBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('map_bookmarks', json.encode(_bookmarks));
+  }
+
+  Future<void> _markCurrentLocation() async {
+    GeoPoint? pos = _position;
+    if (pos == null) {
+      try {
+        pos = await _gps.getCurrentPosition();
+      } catch (_) {}
+    }
+    if (pos == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cannot get GPS position. Try again.')),
+        );
+      }
+      return;
+    }
+
+    final nameController = TextEditingController();
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title:       Text('Mark ${_selectedCategory.toUpperCase()}', style: TextStyle(color: AppTheme.saffronLight)),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(labelText: 'Location name / notes'),
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    _bookmarks.add({
+      'name': nameController.text.isNotEmpty ? nameController.text : '$_selectedCategory #${_bookmarks.length + 1}',
+      'lat': pos.latitude,
+      'lon': pos.longitude,
+      'category': _selectedCategory,
+      'timestamp': DateTime.now().toIso8601String(),
     });
+    await _saveBookmarks();
+    setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_selectedCategory.toUpperCase()} marked at current position')),
+      );
+    }
+  }
+
+  Future<void> _deleteBookmark(int index) async {
+    _bookmarks.removeAt(index);
+    await _saveBookmarks();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final filtered = _bookmarks.where((b) => b['category'] == _selectedCategory).toList();
+
     return Scaffold(
       backgroundColor: AppTheme.navy,
       appBar: AppBar(
-        title: const Text('OFFLINE MAP', style: TextStyle(letterSpacing: 2)),
+        title: Text(Strings.offlineMaps.toUpperCase(), style: const TextStyle(letterSpacing: 2)),
       ),
       body: Column(
         children: [
-          // Location banner
           Container(
             padding: const EdgeInsets.all(12),
             color: AppTheme.surface,
@@ -73,9 +152,8 @@ class _OfflineMapsScreenState extends State<OfflineMapsScreen> {
             ),
           ),
 
-          // Category chips
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -91,113 +169,137 @@ class _OfflineMapsScreenState extends State<OfflineMapsScreen> {
                   label: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        _iconFromString(cat['icon']!),
-                        size: 14,
-                        color: selected ? Colors.black : AppTheme.saffronLight,
-                      ),
+                      Icon(_iconFromString(cat['icon']!), size: 14,
+                          color: selected ? Colors.black : AppTheme.saffronLight),
                       const SizedBox(width: 4),
                       Text(cat['label']!),
                     ],
                   ),
                   selected: selected,
-                  onSelected: (v) {
-                    setState(() {
-                      _selectedCategory = cat['key']!;
-                      _disclaimerShown = null;
-                    });
-                  },
+                  onSelected: (v) => setState(() => _selectedCategory = cat['key']!),
                 );
               }).toList(),
             ),
           ),
 
-          // Search button
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ElevatedButton.icon(
-              onPressed: _position == null ? null : _showDisclaimer,
-              icon: const Icon(Icons.search, size: 18),
-              label: Text('FIND NEARBY ${_selectedCategory.toUpperCase()}S'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 52),
-              ),
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _markCurrentLocation,
+                    icon: const Icon(Icons.add_location, size: 18),
+                    label: Text('MARK ${_selectedCategory.toUpperCase()}'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(0, 48),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
-          // Disclaimer (shown once per category)
-          if (_disclaimerShown != null)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.surfaceLight),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
+          const Divider(height: 1, color: AppTheme.surfaceLight),
+
+          Expanded(
+            child: filtered.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.info_outline, color: AppTheme.saffronLight, size: 16),
-                        SizedBox(width: 10),
+                        Icon(Icons.map_outlined, size: 48, color: AppTheme.grey.withValues(alpha: 0.3)),
+                        const SizedBox(height: 12),
                         Text(
-                          'OFFLINE MAP DATA',
-                          style: TextStyle(
-                            color: AppTheme.saffronLight,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                            letterSpacing: 2,
-                          ),
+                          'No ${_selectedCategory.toUpperCase()} locations marked',
+                          style: const TextStyle(color: AppTheme.grey, fontSize: 12),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Use "MARK" button to save locations as you discover them',
+                          style: TextStyle(color: AppTheme.grey.withValues(alpha: 0.6), fontSize: 10),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Text(_disclaimerShown!,
-                        style: const TextStyle(color: AppTheme.white, fontSize: 13, height: 1.5)),
-                  ],
-                ),
-              ),
-            ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final b = filtered[index];
+                      return Dismissible(
+                        key: ValueKey(b['timestamp']),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          decoration: BoxDecoration(
+                            color: AppTheme.red.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.delete_outline, color: AppTheme.red),
+                        ),
+                        onDismissed: (_) => _deleteBookmark(_bookmarks.indexOf(b)),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.surfaceLight),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(_iconFromString(b['category'] as String),
+                                  size: 20, color: AppTheme.saffronLight),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(b['name'] as String,
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${(b['lat'] as double).toStringAsFixed(4)}, ${(b['lon'] as double).toStringAsFixed(4)}',
+                                      style: const TextStyle(color: AppTheme.grey, fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.grey),
+                                onPressed: () => _deleteBookmark(_bookmarks.indexOf(b)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
 
-          const Spacer(),
-
-          // Offline mode indicator
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             decoration: BoxDecoration(
               color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(color: AppTheme.surfaceLight),
+              border: Border(top: BorderSide(color: AppTheme.surfaceLight)),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.map_outlined, size: 14, color: AppTheme.grey),
-                SizedBox(width: 8),
-                Text('OFFLINE GEODATA ACTIVE',
-                    style: TextStyle(fontSize: 9, color: AppTheme.grey, letterSpacing: 1.5)),
+                const Icon(Icons.wifi_off, size: 12, color: AppTheme.teal),
+                const SizedBox(width: 6),
+                Text(
+                  '${_bookmarks.length} locations marked · OFFLINE',
+                  style: const TextStyle(fontSize: 9, color: AppTheme.grey, letterSpacing: 1.5),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  void _showDisclaimer() {
-    setState(() {
-      _disclaimerShown =
-        'Offline map data is not bundled with this app to keep the APK size small. '
-        'Pre-download OpenStreetMap tiles using OSMAnd or Organic Maps before going offline.\n\n'
-        'Current position: ${_position!.latitude.toStringAsFixed(4)}, ${_position!.longitude.toStringAsFixed(4)}\n'
-        'Category: $_selectedCategory\n\n'
-        'Tip: Mark known shelter/hospital locations in the triage log as you discover them.';
-    });
   }
 
   IconData _iconFromString(String name) {

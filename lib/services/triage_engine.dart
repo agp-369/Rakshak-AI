@@ -143,16 +143,25 @@ class TriageEngine {
   PatientAssessment parseFromDescription(String description) {
     final lower = description.toLowerCase();
 
+    final notWalkingPatterns = ['not walking', 'cannot walk', "can't walk", 'non-ambulatory', 'unable to walk'];
+    final isDefinitelyWalking = (lower.contains('walking') && !notWalkingPatterns.any((p) => lower.contains(p)))
+        || lower.contains('ambulatory') || lower.contains('walking around');
+
+    final notBreathingPatterns = ['not breathing', 'no breathing', "isn't breathing"];
+    final isNotBreathing = notBreathingPatterns.any((p) => lower.contains(p))
+        || lower.contains('सांस नहीं')
+        || lower.contains('no breath');
+
     return assess(
-      isWalking: lower.contains('walking') || lower.contains('ambulatory'),
-      isBreathing: !lower.contains('not breathing') &&
-          !lower.contains('no breathing'),
+      isWalking: isDefinitelyWalking,
+      isBreathing: !isNotBreathing,
       respiratoryRate: _extractNumber(lower, 'respiratory'),
       hasRadialPulse: !lower.contains('no pulse') &&
           !lower.contains('absent pulse'),
       capillaryRefillSeconds: _extractNumber(lower, 'capillary'),
       respondsToVoice: !lower.contains('unresponsive') &&
-          !lower.contains('no response'),
+          !lower.contains('no response') &&
+          !lower.contains('बेहोश'),
       respondsToPain: !lower.contains('no pain response'),
       visibleInjuries: _extractInjuries(description),
     );

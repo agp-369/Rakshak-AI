@@ -10,17 +10,22 @@ class MeshService {
 
   final PatientRepository _repo = PatientRepository();
 
+  /// Max QR v40 binary payload capacity (~2953 bytes, with safety margin).
+  static const int _maxQrBytes = 2800;
+
   /// Encodes all triaged patients into a compressed Base64 string for QR sync.
-  Future<String> generateSyncPayload() async {
+  /// Returns null if the payload exceeds QR capacity.
+  Future<String?> generateSyncPayload() async {
     final patients = await _repo.getAllPatients();
     final jsonList = patients.map((p) => p.toJson()).toList();
     final jsonStr = json.encode(jsonList);
 
-    // Compress to fit more data in QR
     final bytes = utf8.encode(jsonStr);
     final compressed = GZipEncoder().encode(bytes);
+    final payload = base64.encode(compressed);
 
-    return base64.encode(compressed);
+    if (payload.length > _maxQrBytes) return null;
+    return payload;
   }
 
   /// Decodes a sync payload and merges it into the local database.
@@ -50,7 +55,7 @@ class MeshService {
             respondsToPain: item['responds_to_pain'] == true,
             visibleInjuries: item['visible_injuries'] as String?,
             category: _parseCategory(item['category'] as String),
-            confidenceScore: (item['confidence'] as num).toDouble(),
+            confidenceScore: (item['confidence_score'] as num?)?.toDouble() ?? 0.0,
           );
           await _repo.insertPatient(patient);
           importedCount++;
@@ -63,6 +68,6 @@ class MeshService {
   }
 
   TriageCategory _parseCategory(String code) {
-    return TriageCategory.values.firstWhere((e) => e.code == code, orElse: () => TriageCategory.minimal);
+    return TriageCategory.values.firstWhere((e) => e.code == code.toUpperCase(), orElse: () => TriageCategory.minimal);
   }
 }

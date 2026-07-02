@@ -11,7 +11,7 @@ class GemmaTriageService {
   /// Use Gemma 4 to parse natural language and perform START triage.
   /// Supports both English and Hindi descriptions.
   Future<PatientAssessment> parseAndAssess(String description) async {
-    final isHindi = RegExp(r'[\u0900-\u097F]').hasMatch(description);
+    final isHindi = GemmaInferenceService.useHindi;
     final String prompt = isHindi ? '''
 इस आपदा परिदृश्य विवरण से चिकित्सा मूल्यांकन पैरामीटर निकालें।
 केवल JSON ऑब्जेक्ट के साथ उत्तर दें:
@@ -41,9 +41,10 @@ Description: "{description}"
 ''';
 
     try {
+      final escaped = description.replaceAll(RegExp(r'[{}]'), '');
       final result = await _gemma.getResponse(
-        prompt.replaceFirst('{description}', description),
-        temperature: 0.1, // Low temperature for extraction
+        prompt.replaceAll('{description}', escaped),
+        temperature: 0.1,
       );
 
       if (result.isError) {

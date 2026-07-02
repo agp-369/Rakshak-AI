@@ -1,6 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:rakshak_ai/services/gemma_service.dart';
-import 'package:rakshak_ai/ui/triage_dashboard.dart';
+import 'package:rakshak_ai/ui/main_shell.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
@@ -72,6 +73,7 @@ class _SplashScreenState extends State<_SplashScreen>
 
   Future<void> _init() async {
     try {
+      await DeviceCapabilities.initialize();
       await FlutterGemma.initialize();
       if (!mounted) return;
       setState(() => _status = 'AI इंजन शुरू हो रहा है...');
@@ -88,7 +90,7 @@ class _SplashScreenState extends State<_SplashScreen>
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const TriageDashboard()),
+        MaterialPageRoute(builder: (_) => const MainShell()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -290,7 +292,7 @@ class _RadarPainter extends CustomPainter {
     final angle = -1.5708 + progress * 6.2832;
     canvas.drawLine(
       center,
-      Offset(center.dx + (radius - 4) * angle.cos, center.dy + (radius - 4) * angle.sin),
+      Offset(center.dx + (radius - 4) * math.cos(angle), center.dy + (radius - 4) * math.sin(angle)),
       linePaint,
     );
   }

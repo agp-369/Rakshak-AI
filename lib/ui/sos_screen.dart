@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rakshak_ai/services/gps_service.dart';
-import 'package:rakshak_ai/services/gemma_service.dart';
+import 'package:rakshak_ai/services/localization.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
 
 class SosScreen extends StatefulWidget {
@@ -15,7 +15,6 @@ class SosScreen extends StatefulWidget {
 class _SosScreenState extends State<SosScreen>
     with SingleTickerProviderStateMixin {
   final GpsService _gps = GpsService();
-  final GemmaInferenceService _gemma = GemmaInferenceService();
   bool _isBroadcasting = false;
   bool _hasAlerted = false;
   String _message = '';
@@ -81,12 +80,20 @@ class _SosScreenState extends State<SosScreen>
     setState(() => _isBroadcasting = false);
   }
 
+  void _shareSOS() {
+    if (_message.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: _message));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Copied to clipboard — paste into SMS/WhatsApp to alert responders')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.navy,
       appBar: AppBar(
-        title: const Text('SOS BROADCAST', style: TextStyle(letterSpacing: 2)),
+        title: Text(Strings.sos.toUpperCase(), style: const TextStyle(letterSpacing: 2)),
         backgroundColor: AppTheme.red.withValues(alpha: 0.9),
       ),
       body: Column(
@@ -212,7 +219,7 @@ class _SosScreenState extends State<SosScreen>
           ),
 
           Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.fromLTRB(32, 0, 32, 16),
             child: SizedBox(
               width: double.infinity,
               height: 64,
@@ -231,6 +238,24 @@ class _SosScreenState extends State<SosScreen>
               ),
             ),
           ),
+          if (_isBroadcasting && _message.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(32, 0, 32, 32),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _shareSOS,
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('SHARE LOCATION'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.white,
+                    side: BorderSide(color: AppTheme.white.withValues(alpha: 0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
