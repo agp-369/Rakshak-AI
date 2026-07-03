@@ -73,7 +73,7 @@ print("  (Bypassing save_pretrained_merged — transformers 5.x revert bug)")
 
 import bitsandbytes as bnb
 import safetensors.torch
-from transformers.modeling_utils import shard_checkpoint
+from huggingface_hub import split_torch_state_dict_into_shards
 import json
 
 model = model.merge_and_unload()
@@ -110,14 +110,15 @@ os.makedirs(MERGED_PATH, exist_ok=True)
 model.config.save_pretrained(MERGED_PATH)
 tokenizer.save_pretrained(MERGED_PATH)
 
-shards, index = shard_checkpoint(sd, max_shard_size="2GB")
-if index is not None:
-    for sf, sdata in shards.items():
-        safetensors.torch.save_file(sdata, os.path.join(MERGED_PATH, sf))
+split = split_torch_state_dict_into_shards(sd, max_shard_size="2GB")
+for filename, keys in split.filename_to_tensors.items():
+    shard = {k: sd[k] for k in keys}
+    safetensors.torch.save_file(shard, os.path.join(MERGED_PATH, filename))
+if split.is_sharded:
+    weight_map = {k: v for k, v in split.tensor_to_filename.items()}
+    index = {"metadata": {"total_size": split.metadata["total_size"]}, "weight_map": weight_map}
     with open(os.path.join(MERGED_PATH, "model.safetensors.index.json"), "w") as f:
         json.dump(index, f, indent=2)
-else:
-    safetensors.torch.save_file(sd, os.path.join(MERGED_PATH, "model.safetensors"))
 
 size_gb = sum(os.path.getsize(os.path.join(dp, f)) for dp, _, fn in os.walk(MERGED_PATH) for f in fn) / 1024**3
 print(f"  Saved. Size: {size_gb:.2f} GB")
