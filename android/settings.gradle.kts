@@ -10,6 +10,17 @@ pluginManagement {
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
+    // Keep background_downloader's Kotlin serialization compiler plugin on the
+    // same version as the Kotlin compiler used by this project (it requests an
+    // older 2.1.0 by default, which can generate incompatible serializer code).
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "org.jetbrains.kotlin.plugin.serialization") {
+                useVersion("2.2.20")
+            }
+        }
+    }
+
     repositories {
         google()
         mavenCentral()

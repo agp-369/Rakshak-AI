@@ -40,11 +40,19 @@ class GpsService {
 
   GeoPoint? get lastKnown => _lastKnown;
   bool get hasLocation => _lastKnown != null;
+  LocationPermission? get permission => _permission;
+
+  /// True when permission was permanently denied (must open system settings).
+  bool get isPermanentlyDenied => _permission == LocationPermission.deniedForever;
 
   /// Initialize GPS service and request permissions.
   Future<bool> initialize() async {
     try {
-      await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('[!] GPS: location services disabled');
+        return false;
+      }
       _permission = await Geolocator.checkPermission();
 
       if (_permission == LocationPermission.denied) {
@@ -71,6 +79,12 @@ class GpsService {
       return false;
     }
   }
+
+  /// Open the system app-settings page so the user can grant a denied permission.
+  Future<void> openAppSettings() => Geolocator.openAppSettings();
+
+  /// Open the system location-services page.
+  Future<void> openLocationSettings() => Geolocator.openLocationSettings();
 
   /// Get current position with fallback to last known.
   Future<GeoPoint> getCurrentPosition() async {
