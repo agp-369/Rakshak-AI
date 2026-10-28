@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:rakshak_ai/services/localization.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
 import 'package:rakshak_ai/ui/home_screen.dart';
+import 'package:rakshak_ai/ui/map/offline_map_screen.dart';
 import 'package:rakshak_ai/ui/beacon_screen.dart';
 import 'package:rakshak_ai/ui/alerts_screen.dart';
 import 'package:rakshak_ai/ui/more_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum AppTab { home, beacon, alerts, more }
+enum AppTab { home, map, beacon, alerts, more }
 
 class MainShell extends StatefulWidget {
   final int initialIndex;
@@ -53,6 +54,11 @@ class _MainShellState extends State<MainShell> {
                 title: 'HOME',
                 desc: 'Alerts, family status, survival guides at a glance'),
             _GuideRow(
+                icon: Icons.map_outlined,
+                title: 'MAP',
+                desc: 'Offline map with GPS, accuracy, go-to and backtrack. '
+                    'Works with no network.'),
+            _GuideRow(
                 icon: Icons.campaign,
                 title: 'BEACON',
                 desc: '3 buttons — SAFE / NEED HELP / EVACUATE. '
@@ -60,22 +66,17 @@ class _MainShellState extends State<MainShell> {
             _GuideRow(
                 icon: Icons.warning_amber,
                 title: 'ALERTS',
-                desc: 'Official IMD/CWC warnings — tap "Explain with AI" '
-                    'to get exact actions'),
-            _GuideRow(
-                icon: Icons.auto_awesome,
-                title: 'ON-DEVICE AI',
-                desc: 'Gemma runs on your phone: reads warnings, understands '
-                    'panic voice, answers survival questions. No internet.'),
+                desc: 'Official IMD/CWC warnings. Rules give exact actions; '
+                    'AI is optional.'),
             _GuideRow(
                 icon: Icons.grid_view,
                 title: 'MORE',
-                desc: 'Family board, First-10-Minutes + Ask AI, Where Am I, '
-                    'emergency numbers'),
+                desc: 'Family board, First-10-Minutes, AI Pack Manager, '
+                    'Where Am I, emergency numbers'),
             SizedBox(height: 12),
             Text(
-              'Everything works offline. If the AI model is not loaded, '
-              'verified rules take over. No account. No tracking.',
+              'Map and safety rules work offline with no model. AI is opt-in. '
+              'No account. No tracking.',
               style: TextStyle(
                   color: AppTheme.grey, fontSize: 11, height: 1.4),
             ),
@@ -100,10 +101,12 @@ class _MainShellState extends State<MainShell> {
       case 0:
         return 'रक्षक  RAKSHAK';
       case 1:
-        return Strings.beacon.toUpperCase();
+        return AppLang.hindi ? 'ऑफ़लाइन मैप' : 'OFFLINE MAP';
       case 2:
-        return Strings.alerts.toUpperCase();
+        return Strings.beacon.toUpperCase();
       case 3:
+        return Strings.alerts.toUpperCase();
+      case 4:
         return Strings.more.toUpperCase();
       default:
         return 'रक्षक  RAKSHAK';
@@ -137,6 +140,7 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: const [
           HomeScreen(),
+          OfflineMapScreen(),
           BeaconScreen(),
           AlertsScreen(),
           MoreScreen(),
@@ -160,6 +164,8 @@ class _MainShellState extends State<MainShell> {
           items: const [
             BottomNavigationBarItem(
                 icon: Icon(Icons.home_outlined), label: 'HOME'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.map_outlined), label: 'MAP'),
             BottomNavigationBarItem(
                 icon: Icon(Icons.campaign), label: 'BEACON'),
             BottomNavigationBarItem(

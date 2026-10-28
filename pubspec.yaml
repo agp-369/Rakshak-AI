@@ -23,7 +23,9 @@ dependencies:
   # Transitive dep of flutter_gemma. 9.5.9 fails Kotlin compilation and
   # 9.6.x requires Dart >=3.13; 9.5.8 is the last buildable release here.
   background_downloader: 9.5.8
-
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  offline_tiles: ^0.5.10
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -31,3 +33,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/maps/

@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:rakshak_ai/data/disaster_knowledge.dart';
 import 'package:rakshak_ai/data/survival_scenarios.dart';
+import 'package:rakshak_ai/models/model_pack.dart';
 import 'package:rakshak_ai/services/alert_service.dart';
+import 'package:rakshak_ai/services/model_download_service.dart';
 import 'package:rakshak_ai/services/voice_intent.dart';
 
 /// Where an answer came from. Shown to the user, so AI output is never
@@ -130,84 +131,131 @@ class AiEngine {
   double _avgLatencyMs = 0;
 
   AiState get state => _state;
+  ModelTier? _activeTier;
+  ModelTier? get activeTier => _activeTier;
+
   bool get isReady => _state == AiState.ready && _model != null;
   String get status => _status;
   String get lastError => _lastError;
   int get totalInferences => _totalInferences;
   double get avgLatencyMs => _avgLatencyMs;
   bool get visionAvailable =>
-      isReady && DeviceCapabilities.supportsVision;
+      isReady && DeviceCapabilities.supportsVision && _activeTier == ModelTier.full;
 
-  /// Load the model in the background. Never awaited at startup — the app
-  /// must open instantly and work without AI (the v1 lockout lesson).
+  /// Load the model in the background. AI is opt-in in field-first v2.
   Future<void> initializeInBackground() async {
-    if (_state == AiState.loading || _state == AiState.ready) return;
-    _setState(AiState.loading, 'Looking for the on-device model…');
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final enabled = sp.getBool('ai_enabled') == true;
+      if (!enabled) {
+        _model = null;
+        _activeTier = null;
+        _setState(AiState.unavailable, 'AI unloaded — running deterministic safety rules (0 MB RAM)');
+        return;
+      }
+
+      final savedTierId = sp.getString('active_model_tier');
+      final tier = ModelTier.values.firstWhere(
+        (t) => t.id == savedTierId,
+        orElse: () => DeviceCapabilities.isLowRam ? ModelTier.tiny : ModelTier.small,
+      );
+
+      await loadModelTier(tier);
+    } catch (e) {
+      debugPrint('[AiEngine] ai_enabled load failed: $e');
+      _model = null;
+      _activeTier = null;
+      _setState(AiState.unavailable, 'AI unloaded — rule mode');
+    }
+  }
+
+  /// Load a specific model tier into RAM.
+  Future<void> loadModelTier(ModelTier tier, {String? customPath}) async {
+    if (_state == AiState.loading) return;
+    _setState(AiState.loading, 'Loading ${tier.displayNameEn} into RAM…');
+
     try {
       try {
         await FlutterGemma.initialize();
-      } catch (_) {
-        // Already initialised or unsupported platform — safe to continue.
-      }
+      } catch (_) {}
       await DeviceCapabilities.initialize();
-      if (!FlutterGemma.hasActiveModel()) {
-        await _installFromDevice();
+
+      String? targetPath = customPath;
+      targetPath ??= await findModelFileForTier(tier);
+      if (targetPath == null) {
+        throw StateError('Model file ${tier.modelFile} not found in app storage or Download folder');
       }
+
+      // Close previous model if loaded
+      await unloadModel(saveDisabledPreference: false);
+
+      await FlutterGemma.installModel(
+        modelType: tier.gemmaModelType,
+        fileType: ModelFileType.litertlm,
+      ).fromFile(targetPath).install();
+
       _model = await FlutterGemma.getActiveModel(
         maxTokens: DeviceCapabilities.maxTokens,
         preferredBackend: DeviceCapabilities.preferredBackend,
-        supportImage: DeviceCapabilities.supportsVision,
-        maxNumImages: DeviceCapabilities.supportsVision ? 1 : 0,
+        supportImage: tier == ModelTier.full && DeviceCapabilities.supportsVision,
+        maxNumImages: (tier == ModelTier.full && DeviceCapabilities.supportsVision) ? 1 : 0,
         enableSpeculativeDecoding: DeviceCapabilities.enableSpeculativeDecoding,
       );
-      _setState(AiState.ready, 'AI ready — on-device');
+
+      _activeTier = tier;
+      final sp = await SharedPreferences.getInstance();
+      await sp.setBool('ai_enabled', true);
+      await sp.setString('active_model_tier', tier.id);
+
+      _setState(AiState.ready, 'AI ready — on-device (${tier.displayNameEn})');
     } catch (e) {
       _lastError = e.toString();
-      _setState(AiState.error, 'Running in rule mode (AI model not loaded)');
+      _model = null;
+      _activeTier = null;
+      _setState(AiState.error, 'Running in rule mode: $e');
+      rethrow;
     }
+  }
+
+  Future<void> unloadModel({bool saveDisabledPreference = true}) async {
+    try {
+      _model = null;
+      _activeTier = null;
+      try {
+        final obj = FlutterGemma as dynamic;
+        if (obj != null) {
+          try { await obj.closeActiveModel(); } catch (_) {}
+          try { await obj.clearActiveModel(); } catch (_) {}
+          try { await obj.close(); } catch (_) {}
+        }
+      } catch (_) {}
+
+      if (saveDisabledPreference) {
+        final sp = await SharedPreferences.getInstance();
+        await sp.setBool('ai_enabled', false);
+      }
+      _setState(AiState.unavailable, 'AI unloaded — running deterministic safety rules (0 MB RAM)');
+    } catch (e) {
+      debugPrint('[AiEngine] unload error: $e');
+    }
+  }
+
+  Future<String?> findModelFileForTier(ModelTier tier) async {
+    final downloadService = ModelDownloadService();
+    final installedFile = await downloadService.getInstalledFile(tier);
+    if (installedFile != null) return installedFile.path;
+
+    final downloadFolderFile = await downloadService.getDownloadFolderFile(tier);
+    if (downloadFolderFile != null) return downloadFolderFile.path;
+
+    return null;
   }
 
   void _setState(AiState state, String status) {
+    if (state == _state && status == _status) return;
     _state = state;
     _status = status;
-    debugPrint('[AI] $status');
-  }
-
-  Future<void> _installFromDevice() async {
-    late final String privateDir;
-    try {
-      privateDir = (await getApplicationSupportDirectory()).path;
-    } catch (_) {
-      privateDir = (await getExternalStorageDirectory())?.path ?? '';
-    }
-    if (privateDir.isEmpty) throw StateError('No writable storage');
-
-    const fileName = 'gemma-4-E2B-it.litertlm';
-    final privatePath = '$privateDir/$fileName';
-
-    final candidates = <String>[
-      privatePath,
-      '/sdcard/Download/$fileName',
-      '/storage/emulated/0/Download/$fileName',
-      '${(await getExternalStorageDirectory())?.path ?? ''}/$fileName',
-    ];
-
-    for (final path in candidates) {
-      final file = File(path);
-      if (!await file.exists()) continue;
-      final size = await file.length();
-      if (size < 1048576) continue;
-      if (path != privatePath) {
-        _setState(AiState.loading, 'Copying model into app storage…');
-        await file.copy(privatePath);
-      }
-      await FlutterGemma.installModel(
-        modelType: ModelType.gemma4,
-        fileType: ModelFileType.litertlm,
-      ).fromFile(privatePath).install();
-      return;
-    }
-    throw StateError('Model file not found in app storage or Download folder');
+    debugPrint('[AiEngine] state: $_state, status: $_status');
   }
 
   // ---------------------------------------------------------------------

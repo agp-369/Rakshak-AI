@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Rakshak AI — Live Interactive Demo</title>
+  <meta name="description" content="Live interactive demo of Rakshak AI: offline disaster response companion for budget Android phones. Try the map, beacon, alerts, family board, AI pack manager, and more." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand">
+        <span class="brand-mark">र</span>
+        <div class="brand-text">
+          <strong>RAKSHAK AI</strong>
+          <small>Live Interactive Demo · Offline Disaster Companion</small>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="langToggle" class="chip" aria-label="Toggle language">HI / EN</button>
+        <button id="liveLocBtn" class="chip" aria-label="Use live location">📍 Live GPS</button>
+      </div>
+    </header>
+
+    <main id="stage">
+      <!-- HOME -->
+      <section id="tab-home" class="tab active">
+        <div class="card alert-card">
+          <div class="card-head"><span class="dot red"></span><span id="alertTitle">IMD Red Alert</span></div>
+          <p id="alertBody">Heavy rainfall warning for Dehradun district. Avoid riverbanks. Move to higher ground.</p>
+          <div class="actions">
+            <button class="btn primary" onclick="showTab('alerts')">View Actions</button>
+            <button class="btn ghost" onclick="speakText(document.getElementById('alertBody').textContent)">🔊 Read Aloud</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 id="homeSituationTitle">Situation Brief</h3>
+          <div class="stat-grid">
+            <div class="stat"><span id="statFamily">4</span><small>Family</small></div>
+            <div class="stat"><span id="statSafe">2</span><small>Safe</small></div>
+            <div class="stat"><span id="statHelp">1</span><small>Need Help</small></div>
+            <div class="stat"><span id="statUnknown">1</span><small>Unknown</small></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 id="homeQuickTitle">Quick Actions</h3>
+          <div class="quick-grid">
+            <button class="quick" onclick="showTab('beacon')"><span>📢</span><span id="qBeacon">Beacon</span></button>
+            <button class="quick" onclick="showTab('map')"><span>🗺️</span><span id="qMap">Map</span></button>
+            <button class="quick" onclick="showTab('more')"><span>👨‍👩‍👧</span><span id="qFamily">Family</span></button>
+            <button class="quick" onclick="showTab('more')"><span>🔢</span><span id="qEmergency">Emergency #</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAP -->
+      <section id="tab-map" class="tab">
+        <div class="map-wrap">
+          <canvas id="mapCanvas" width="900" height="600"></canvas>
+          <div class="map-hud">
+            <div><strong id="hudAcc">±5 m</strong><small>Accuracy</small></div>
+            <div><strong id="hudFix">12s</strong><small>Fix age</small></div>
+            <div><strong id="hudCoord">30.3255, 78.0413</strong><small>Coords</small></div>
+          </div>
+          <div class="map-tools">
+            <button class="tool" onclick="dropHazard()">📍 Drop Hazard</button>
+            <button class="tool" onclick="toggleBacktrack()">↩ Backtrack</button>
+            <button class="tool" onclick="clearTrail()">🗑 Clear</button>
+            <button class="tool" onclick="setTarget()">🎯 Set Target</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 id="mapGoToTitle">Go-To Bearing</h3>
+          <p id="mapGoToBody">Tap "Set Target" then click on map. Arrow shows bearing & distance.</p>
+          <div class="go-to" id="goToInfo">—</div>
+        </div>
+      </section>
+
+      <!-- BEACON -->
+      <section id="tab-beacon" class="tab">
+        <div class="beacon-grid">
+          <button class="beacon safe" onclick="composeBeacon('safe')">✅ SAFE</button>
+          <button class="beacon help" onclick="composeBeacon('needHelp')">🆘 NEED HELP</button>
+          <button class="beacon evac" onclick="composeBeacon('evacuate')">🚨 EVACUATE</button>
+        </div>
+        <div class="card">
+          <h3 id="beaconMsgTitle">Composed SMS</h3>
+          <pre id="beaconMsg">—</pre>
+          <div class="actions">
+            <button class="btn primary" onclick="copyBeacon()">Copy</button>
+            <button class="btn ghost" onclick="speakText(document.getElementById('beaconMsg').textContent)">🔊 Read Aloud</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALERTS -->
+      <section id="tab-alerts" class="tab">
+        <div id="alertsList"></div>
+      </section>
+
+      <!-- MORE -->
+      <section id="tab-more" class="tab">
+        <div class="more-menu">
+          <button class="more-item" onclick="openPanel('family')">👨‍👩‍👧 Family Board</button>
+          <button class="more-item" onclick="openPanel('whereami')">📍 Where Am I</button>
+          <button class="more-item" onclick="openPanel('packs')">📦 AI Pack Manager</button>
+          <button class="more-item" onclick="openPanel('emergency')">📞 Emergency Numbers</button>
+          <button class="more-item" onclick="openPanel('survey')">📋 Damage Survey</button>
+          <button class="more-item" onclick="openPanel('guides')">📖 First 10 Minutes</button>
+        </div>
+        <div id="panel" class="panel"></div>
+      </section>
+    </main>
+
+    <nav id="bottomnav">
+      <button data-tab="home" class="navbtn active" onclick="showTab('home')">🏠<small id="nHome">Home</small></button>
+      <button data-tab="map" class="navbtn" onclick="showTab('map')">🗺️<small id="nMap">Map</small></button>
+      <button data-tab="beacon" class="navbtn" onclick="showTab('beacon')">📢<small id="nBeacon">Beacon</small></button>
+      <button data-tab="alerts" class="navbtn" onclick="showTab('alerts')">⚠️<small id="nAlerts">Alerts</small></button>
+      <button data-tab="more" class="navbtn" onclick="showTab('more')">⋯<small id="nMore">More</small></button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

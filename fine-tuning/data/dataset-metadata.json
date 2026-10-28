@@ -1,0 +1,57 @@
+{
+  "title": "Rakshak AI Disaster Survival Fine-Tune Dataset",
+  "id": "abhishekguptaagp/rakshak-ai-disaster-finetune",
+  "licenses": [
+    {
+      "name": "CC0-1.0"
+    }
+  ],
+  "keywords": [
+    "disaster",
+    "emergency",
+    "flood",
+    "landslide",
+    "earthquake",
+    "india",
+    "hindi",
+    "hinglish",
+    "offline",
+    "ndma",
+    "first-aid",
+    "gemma",
+    "lora",
+    "litertlm",
+    "on-device"
+  ],
+  "description": "Task-aligned supervised data for fine-tuning Gemma 4 E2B on Rakshak AI. Alert and brief examples are synthetic, written in IMD/CWC/GSI style; survival answers are grounded in NDMA/WHO/NDRF notes. Covers alert->action JSON, Hindi/English distress intent parsing, grounded survival RAG, and situation briefs. Prompts match lib/services/ai_engine.dart exactly.",
+  "resources": [
+    {
+      "path": "rakshak_train.jsonl",
+      "description": "Mixed-task training split"
+    },
+    {
+      "path": "rakshak_eval.jsonl",
+      "description": "Stratified held-out evaluation"
+    },
+    {
+      "path": "alert_actions.jsonl",
+      "description": "Alert interpretation examples"
+    },
+    {
+      "path": "distress.jsonl",
+      "description": "Voice distress intent examples"
+    },
+    {
+      "path": "survival_qa.jsonl",
+      "description": "Grounded RAG examples"
+    },
+    {
+      "path": "situation_brief.jsonl",
+      "description": "Situation brief examples"
+    },
+    {
+      "path": "stats.json",
+      "description": "Dataset statistics"
+    }
+  ]
+}

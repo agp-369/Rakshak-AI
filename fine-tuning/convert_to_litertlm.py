@@ -14,7 +14,7 @@ Usage:
   python convert_to_litertlm.py
 
 Output:
-  rakshak-output/rakshak-merged-litertlm/rakshak-ai.litertlm
+  rakshak-output/rakshak-merged-litertlm/gemma-4-E2B-it.litertlm
 """
 import os, shutil, gc, torch
 
@@ -25,7 +25,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 LORA_PATH = os.path.join(PROJECT_DIR, "rakshak-lora-final")
 OUTPUT_DIR = os.path.join(PROJECT_DIR, "rakshak-output", "rakshak-merged-litertlm")
-LITERTLM_PATH = os.path.join(OUTPUT_DIR, "rakshak-ai.litertlm")
+LITERTLM_PATH = os.path.join(OUTPUT_DIR, "gemma-4-E2B-it.litertlm")
 MERGED_PATH = os.path.join(OUTPUT_DIR, "full-precision")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)

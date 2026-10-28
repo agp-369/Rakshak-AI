@@ -43,6 +43,7 @@ class _StartupScreenState extends State<_StartupScreen> {
 
   Future<void> _boot() async {
     await AppLang.load();
+    // AI is opt-in in field-first v2; do not block startup.
     unawaited(AiEngine().initializeInBackground());
     if (!mounted) return;
     Navigator.pushReplacement(

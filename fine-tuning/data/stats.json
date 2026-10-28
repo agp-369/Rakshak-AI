@@ -1,0 +1,15 @@
+{
+  "total": 358,
+  "train": 323,
+  "eval": 35,
+  "by_task": {
+    "alert": 160,
+    "distress": 102,
+    "survival": 80,
+    "brief": 16
+  },
+  "by_lang": {
+    "en": 179,
+    "hi": 179
+  }
+}

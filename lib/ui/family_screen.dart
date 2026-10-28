@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:rakshak_ai/services/contacts_service.dart';
 import 'package:rakshak_ai/services/family_board_service.dart';
 import 'package:rakshak_ai/services/gps_service.dart';
 import 'package:rakshak_ai/services/localization.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
+import 'package:rakshak_ai/ui/contact_picker_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Offline family board. Everyone's status is stored on this phone and
@@ -46,6 +48,34 @@ class _FamilyScreenState extends State<FamilyScreen> {
         return AppTheme.saffron;
       case MemberStatus.unknown:
         return AppTheme.grey;
+    }
+  }
+
+  Future<void> _importFromContacts() async {
+    final selected = await Navigator.push<List<ContactEntry>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContactPickerScreen(existingMembers: _members),
+      ),
+    );
+    if (selected != null && selected.isNotEmpty) {
+      for (final c in selected) {
+        await _service.addMember(c.name, c.phone);
+      }
+      await _load();
+      if (mounted) {
+        final hi = AppLang.hindi;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              hi
+                  ? '${selected.length} सदस्य परिवार बोर्ड में जोड़े गए'
+                  : '${selected.length} family member(s) imported from contacts',
+            ),
+            backgroundColor: AppTheme.tealLight,
+          ),
+        );
+      }
     }
   }
 
@@ -138,7 +168,16 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
   Future<void> _call(String phone) async {
     if (phone.isEmpty) return;
-    await launchUrl(Uri(scheme: 'tel', path: phone));
+    final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final uri = Uri(scheme: 'tel', path: cleanPhone);
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await launchUrl(Uri.parse('tel:$cleanPhone'));
+      }
+    } catch (_) {
+      await launchUrl(Uri.parse('tel:$cleanPhone'));
+    }
   }
 
   @override
@@ -151,25 +190,79 @@ class _FamilyScreenState extends State<FamilyScreen> {
             style: const TextStyle(fontSize: 15)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.contacts, color: AppTheme.saffronLight),
+            onPressed: _importFromContacts,
+            tooltip: lang ? 'संपर्क से चुनें' : 'Import from Contacts',
+          ),
+          IconButton(
             icon: const Icon(Icons.person_add),
             onPressed: _addMember,
-            tooltip: 'Add member',
+            tooltip: lang ? 'मैन्युअल जोड़ें' : 'Add manually',
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
           : _members.isEmpty
-              ? _EmptyFamily(lang: lang, onAdd: _addMember)
+              ? _EmptyFamily(
+                  lang: lang,
+                  onAddManual: _addMember,
+                  onImportContacts: _importFromContacts,
+                )
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    Text(
-                      lang
-                          ? 'इस बोर्ड पर हर व्यक्ति की स्थिति सेव रहती है — इंटरनेट के बिना भी।'
-                          : "Each person's status is saved on this phone — even without internet.",
-                      style: const TextStyle(
-                          color: AppTheme.grey, fontSize: 12, height: 1.4),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.surfaceLight),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.shield_outlined, color: AppTheme.tealLight, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              lang
+                                  ? 'इस बोर्ड पर परिवार की स्थिति बिना इंटरनेट भी सेव रहती है। बीकन संदेश सीधे इन नंबरों पर जाते हैं।'
+                                  : "Each person's status is saved offline. SMS beacons automatically go to these verified numbers.",
+                              style: const TextStyle(color: AppTheme.grey, fontSize: 11, height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.saffronLight,
+                              side: const BorderSide(color: AppTheme.saffronLight),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            onPressed: _importFromContacts,
+                            icon: const Icon(Icons.contacts, size: 16),
+                            label: Text(lang ? 'संपर्क से आयात' : 'Import Contacts', style: const TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.white,
+                              side: const BorderSide(color: AppTheme.surfaceLight),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            onPressed: _addMember,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: Text(lang ? 'नया नंबर' : 'Add New', style: const TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     ..._members.map((m) => _MemberCard(
@@ -232,6 +325,11 @@ class _MemberCard extends StatelessWidget {
               '${member.status.label} · ${member.status.labelHi}',
               style: TextStyle(color: color, fontSize: 12),
             ),
+            if (member.phone.isNotEmpty)
+              Text(
+                member.phone,
+                style: const TextStyle(color: AppTheme.grey, fontSize: 11),
+              ),
             Text(
               member.hasLocation
                   ? '${member.latitude!.toStringAsFixed(4)}, ${member.longitude!.toStringAsFixed(4)} · ${member.timeAgo}'
@@ -244,7 +342,8 @@ class _MemberCard extends StatelessWidget {
         ),
         trailing: !isSelf && member.phone.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.phone, color: AppTheme.saffronLight, size: 20),
+                icon: const Icon(Icons.phone, color: AppTheme.saffronLight, size: 22),
+                tooltip: lang ? 'कॉल करें' : 'Call',
                 onPressed: onCall,
               )
             : const Icon(Icons.chevron_right, color: AppTheme.grey),
@@ -255,8 +354,14 @@ class _MemberCard extends StatelessWidget {
 
 class _EmptyFamily extends StatelessWidget {
   final bool lang;
-  final VoidCallback onAdd;
-  const _EmptyFamily({required this.lang, required this.onAdd});
+  final VoidCallback onAddManual;
+  final VoidCallback onImportContacts;
+
+  const _EmptyFamily({
+    required this.lang,
+    required this.onAddManual,
+    required this.onImportContacts,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -266,26 +371,45 @@ class _EmptyFamily extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.family_restroom, color: AppTheme.grey, size: 48),
+            const Icon(Icons.family_restroom, color: AppTheme.grey, size: 54),
             const SizedBox(height: 16),
             Text(
               lang ? 'कोई सदस्य नहीं' : 'No family members yet',
-              style: const TextStyle(color: AppTheme.white, fontSize: 15),
+              style: const TextStyle(color: AppTheme.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               lang
-                  ? 'परिवार जोड़ें ताकि बीकन उन्हें भेज सकें और उनकी स्थिति देख सकें।'
-                  : 'Add family so beacons go to them and you can track their status.',
+                  ? 'परिवार जोड़ें ताकि आपातकाल में एक टैप में बीकन भेजा जा सके और उनकी स्थिति ट्रैक हो सके।'
+                  : 'Add your close family members so 1-tap SOS beacons reach them and their safety status is tracked offline.',
               textAlign: TextAlign.center,
               style: const TextStyle(
                   color: AppTheme.grey, fontSize: 12, height: 1.4),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.person_add, size: 18),
-              label: Text(lang ? 'सदस्य जोड़ें' : 'Add member'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.saffron,
+                foregroundColor: AppTheme.navy,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: onImportContacts,
+              icon: const Icon(Icons.contacts, size: 18),
+              label: Text(
+                lang ? 'फोन संपर्कों से चुनें' : 'Choose from Contacts',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.white,
+                side: const BorderSide(color: AppTheme.surfaceLight),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              onPressed: onAddManual,
+              icon: const Icon(Icons.person_add, size: 16),
+              label: Text(lang ? 'मैन्युअल नाम/नंबर जोड़ें' : 'Add Manually'),
             ),
           ],
         ),

@@ -4,7 +4,10 @@ import 'package:rakshak_ai/services/localization.dart';
 import 'package:rakshak_ai/theme/app_theme.dart';
 import 'package:rakshak_ai/ui/emergency_contacts_screen.dart';
 import 'package:rakshak_ai/ui/family_screen.dart';
+import 'package:rakshak_ai/ui/map/offline_map_screen.dart';
+import 'package:rakshak_ai/ui/packs/ai_pack_manager_screen.dart';
 import 'package:rakshak_ai/ui/settings_screen.dart';
+import 'package:rakshak_ai/ui/surveys/damage_survey_screen.dart';
 import 'package:rakshak_ai/ui/survival_screen.dart';
 import 'package:rakshak_ai/ui/where_am_i_screen.dart';
 
@@ -46,6 +49,33 @@ class MoreScreen extends StatelessWidget {
               ? 'रेडियो/हेलीकॉप्टर को बताने के लिए बड़े नंबरों में स्थान'
               : 'Giant coordinates to relay to rescue teams',
           onTap: () => _push(context, const WhereAmIScreen()),
+        ),
+        _MenuItem(
+          icon: Icons.map_outlined,
+          color: AppTheme.teal,
+          title: lang ? 'ऑफ़लाइन मैप' : 'Offline Map',
+          subtitle: lang
+              ? 'Dehradun पायलट पैक • GPS, बैकट्रैक'
+              : 'Dehradun pilot pack • GPS, backtrack',
+          onTap: () => _push(context, const OfflineMapScreen()),
+        ),
+        _MenuItem(
+          icon: Icons.memory,
+          color: AppTheme.tealLight,
+          title: lang ? 'AI पैक मैनेजर' : 'AI Pack Manager',
+          subtitle: lang
+              ? 'AI चालू/बंद • पैक चुनें • वैकल्पिक'
+              : 'Enable/disable AI • pick packs • optional',
+          onTap: () => _push(context, const AiPackManagerScreen()),
+        ),
+        _MenuItem(
+          icon: Icons.camera_indoor,
+          color: AppTheme.saffron,
+          title: lang ? 'क्षति सर्वेक्षण (आपदा उपरांत)' : 'Damage Survey (Post-Disaster)',
+          subtitle: lang
+              ? 'जियो-टैग फ़ोटो • राहत व मुआवज़ा रिपोर्ट • CSV एक्सपोर्ट'
+              : 'Geotagged photos • relief evidence • CSV export',
+          onTap: () => _push(context, const DamageSurveyScreen()),
         ),
         _MenuItem(
           icon: Icons.contact_phone,
